@@ -305,9 +305,10 @@ class AdroitHandPenEnv(MujocoEnv, EzPickle):
         goal_distance = np.linalg.norm(obj_pos - desired_loc)
         orien_similarity = np.dot(obj_orien, desired_orien)
         goal_achieved = goal_distance < 0.075 and orien_similarity > 0.95
-        reward = 10.0 if goal_achieved else -0.1
+        reward = 10.0 if goal_achieved else 0
 
-        # goal_failed = obj_pos[2] < 0.075
+        goal_failed = obj_pos[2] < 0.075
+
 
         # override reward if not sparse reward
         if not self.sparse_reward:
@@ -331,8 +332,8 @@ class AdroitHandPenEnv(MujocoEnv, EzPickle):
             reward,
             # goal_failed or goal_achieved,
             False,
-            False,
-            dict(success=goal_achieved),
+            goal_failed,
+            dict(success=goal_achieved, cost=goal_failed, goal_met=goal_achieved),
         )
 
     def _get_obs(self):

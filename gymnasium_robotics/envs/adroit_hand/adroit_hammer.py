@@ -194,7 +194,7 @@ class AdroitHandHammerEnv(MujocoEnv, EzPickle):
         "render_fps": 100,
     }
 
-    def __init__(self, reward_type: str = "dense", **kwargs):
+    def __init__(self, reward_type: str = "dense", nail_impact=0.05, **kwargs):
         xml_file_path = path.join(
             path.dirname(path.realpath(__file__)),
             "../assets/adroit_hand/adroit_hammer.xml",
@@ -223,6 +223,7 @@ class AdroitHandHammerEnv(MujocoEnv, EzPickle):
                 f"Unknown reward type, expected `dense` or `sparse` but got {reward_type}"
             )
 
+        self.nail_impact = nail_impact
         # Override action_space to -1, 1
         self.action_space = spaces.Box(
             low=-1.0, high=1.0, dtype=np.float32, shape=self.action_space.shape
@@ -300,8 +301,11 @@ class AdroitHandHammerEnv(MujocoEnv, EzPickle):
         # compute the sparse reward variant first
         goal_distance = np.linalg.norm(nail_pos - goal_pos)
         goal_achieved = goal_distance < 0.01
-        reward = 10.0 if goal_achieved else -0.1
+        reward = 10.0 if goal_achieved else 0
 
+        change = np.linalg.norm(self.nail_pos - nail_pos)
+
+        (change >= self.nail_impact)
         # override reward if not sparse reward
         if not self.sparse_reward:
             # get the palm to the hammer handle
@@ -326,7 +330,7 @@ class AdroitHandHammerEnv(MujocoEnv, EzPickle):
         if self.render_mode == "human":
             self.render()
 
-        return obs, reward, False, False, dict(success=goal_achieved)
+        return obs, reward, False, goal_failed, dict(success=goal_achieved, cost=goal_failed, goal_met=goal_achieved)
 
     def _get_obs(self):
         # qpos for hand
@@ -360,6 +364,7 @@ class AdroitHandHammerEnv(MujocoEnv, EzPickle):
         options: Optional[dict] = None,
     ):
         obs, info = super().reset(seed=seed)
+        self.nail_pos = self.data.site_xpos[self.target_obj_site_id].ravel()
         if options is not None and "initial_state_dict" in options:
             self.set_env_state(options["initial_state_dict"])
             obs = self._get_obs()

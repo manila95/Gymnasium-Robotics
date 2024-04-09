@@ -266,6 +266,7 @@ class AdroitHandPenEnv(MujocoEnv, EzPickle):
         self.act_rng = 0.5 * (
             self.model.actuator_ctrlrange[:, 1] - self.model.actuator_ctrlrange[:, 0]
         )
+        self.cost = False
 
         self._state_space = spaces.Dict(
             {
@@ -307,8 +308,12 @@ class AdroitHandPenEnv(MujocoEnv, EzPickle):
         goal_achieved = goal_distance < 0.075 and orien_similarity > 0.95
         reward = 10.0 if goal_achieved else 0
 
-        goal_failed = obj_pos[2] < 0.075
 
+        if not self.cost:
+            goal_failed = obj_pos[2] < 0.075
+            self.cost = goal_failed
+        else:
+            goal_failed = False
 
         # override reward if not sparse reward
         if not self.sparse_reward:
@@ -321,8 +326,8 @@ class AdroitHandPenEnv(MujocoEnv, EzPickle):
                 reward += 50
 
             # penalty for dropping the pen
-            if obj_pos[2] < 0.075:
-                reward -= 5
+            # if obj_pos[2] < 0.075:
+            #     reward -= 5
 
         if self.render_mode == "human":
             self.render()
@@ -330,10 +335,11 @@ class AdroitHandPenEnv(MujocoEnv, EzPickle):
         return (
             obs,
             reward,
+            # goal_failed,
             # goal_failed or goal_achieved,
             False,
-            goal_failed,
-            dict(success=goal_achieved, cost=goal_failed, goal_met=goal_achieved),
+            False,
+            dict(success=int(goal_achieved), cost=int(goal_failed), goal_met=int(goal_achieved)),
         )
 
     def _get_obs(self):
@@ -372,7 +378,10 @@ class AdroitHandPenEnv(MujocoEnv, EzPickle):
         if options is not None and "initial_state_dict" in options:
             self.set_env_state(options["initial_state_dict"])
             obs = self._get_obs()
-
+        info["cost"] = 0
+        info["success"] = 0
+        info["goal_met"] = 0
+        self.cost = False
         return obs, info
 
     def reset_model(self):
